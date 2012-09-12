@@ -77,7 +77,7 @@ create_or_update_user(Req, ClientID, ClientSecret, AccessToken, {ok, FacebookUse
 
 request_facebook_graphme_info(AccessToken) ->
     %% Construct the URL to access the graph API's /me page
-    Url="https://graph.facebook.com/me?fields=id,username,name&access_token="++AccessToken,
+    Url="https://graph.facebook.com/me?fields=id,username,name,email&access_token="++AccessToken,
     ?LOG_DEBUG("Url=~p",[Url]),
 
     %% Request the page
@@ -94,9 +94,10 @@ process_facebook_graphme_response(Resp) ->
             %% ID and the complete response.
             {FBInfo}=?JSON_DECODE(Body),
             ID = ?b2l(couch_util:get_value(<<"id">>, FBInfo)),
+            
             Username = case couch_util:get_value(<<"username">>, FBInfo) of
                            undefined ->
-                               convert_name_to_username(?b2l(couch_util:get_value(<<"name">>, FBInfo)));
+                               convert_name_to_username(?b2l(couch_util:get_value(<<"email">>, FBInfo)));
                            FBUsername ->
                                ?b2l(FBUsername)
                        end,
@@ -175,13 +176,13 @@ request_access_token_extension(ClientID, ClientSecret, Token) ->
             throw(could_not_extend_token)
     end.
     
--define(INVALID_CHARS, "&%+,./:;=?@ <>#%|\\[]{}~^`'").
+-define(INVALID_CHARS, "&%+,/:;=? <>#%|\\[]{}~^`'.@").
 
 convert_name_to_username(Name) ->
     Trimmed = lists:foldr(fun(Char, Acc) ->
                                   case lists:member(Char, ?INVALID_CHARS) of
                                       true ->
-                                          Acc;
+                                          [$-|Acc];
                                       false ->
                                           [Char|Acc]
                                   end
